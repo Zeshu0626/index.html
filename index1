@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>我的智能冰箱 Pro</title>
+    <style>
+        body { font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif; background-color: #f4f7f6; padding: 20px; max-width: 600px; margin: 0 auto; color: #333; }
+        h1 { text-align: center; color: #2c3e50; margin-bottom: 30px; }
+        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        h3 { margin-top: 0; color: #34495e; border-left: 4px solid #3498db; padding-left: 10px; }
+        input[type="text"], input[type="date"], input[type="number"] { width: 100%; padding: 12px; margin: 8px 0; box-sizing: border-box; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; transition: border 0.3s; }
+        input:focus { border-color: #3498db; outline: none; }
+        button { width: 100%; padding: 12px; margin-top: 10px; border-radius: 8px; border: none; cursor: pointer; font-size: 16px; font-weight: bold; transition: opacity 0.2s; }
+        button:active { opacity: 0.8; }
+        .btn-add { background-color: #3498db; color: white; }
+        .btn-recipe { background-color: #2ecc71; color: white; }
+        .btn-del { background-color: #e74c3c; color: white; width: auto; padding: 6px 12px; font-size: 14px; margin: 0; }
+        .btn-week { background: linear-gradient(135deg, #9b59b6, #8e44ad); color: white; }
+        .food-item { display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid #eee; animation: fadeIn 0.3s; }
+        .food-info strong { display: block; font-size: 1.1em; }
+        .food-info small { color: #7f8c8d; }
+        .status-badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 12px; margin-top: 5px; }
+        .status-fresh { background: #d4edda; color: #155724; }
+        .status-warning { background: #fff3cd; color: #856404; }
+        .status-danger { background: #f8d7da; color: #721c24; }
+        .storage-tip {
+            background-color: #e8f8f5;
+            border: 1px solid #a3e4d7;
+            color: #1abc9c;
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 14px;
+            line-height: 1.5;
+            margin-top: 10px;
+            display: none;
+        }
+        .storage-tip strong { color: #16a085; }
+        .week-plan {
+            background: #f8f9fa;
+            border-radius: 8px;
+            overflow: hidden;
+            margin-top: 15px;
+        }
+        .week-day {
+            padding: 12px 15px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+        }
+        .week-day:last-child { border-bottom: none; }
+        .day-name { font-weight: bold; min-width: 60px; color: #2c3e50; }
+        .day-recipe { color: #27ae60; flex: 1; }
+        .shopping-list {
+            background: #fff8e6;
+            padding: 10px;
+            border-radius: 6px;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+        .shopping-item { display: flex; justify-content: space-between; padding: 5px 0; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+    <h1>🧊 智能冰箱管家</h1>
+
+    <!-- 录入区域 -->
+    <div class="card">
+        <h3>➕ 录入新食材</h3>
+        <input type="text" id="foodName" placeholder="食材名称 (如: 白蘑菇)" oninput="checkStorageTip()">
+        <input type="date" id="expiryDate">
+        <div id="storageTipBox" class="storage-tip"></div>
+        <button class="btn-add" onclick="addFood()">存入冰箱</button>
+    </div>
+
+    <!-- 列表区域 -->
+    <div class="card">
+        <h3>📝 库存清单</h3>
+        <div id="foodList"></div>
+    </div>
+
+    <!-- 周计划生成器 -->
+    <div class="card">
+        <h3>🗓️ 定制我的周计划</h3>
+        <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+            <button style="flex:1; padding:10px" class="btn-week" onclick="generateWeekPlan('stock')">清库存模式</button>
+            <button style="flex:1; padding:10px" class="btn-recipe" onclick="toggleCustomInput()">自定义模式</button>
+        </div>
+        <div id="customInput" style="display:none; margin-bottom:15px;">
+            <input type="text" id="customDish" placeholder="输入想吃的菜（如：番茄牛腩）">
+            <small style="display:block; margin:5px 0; color:#7f8c8d">提示：可输入1-3道想吃的菜，用逗号分隔</small>
+        </div>
+        <button class="btn-recipe" onclick="generateWeekPlan('custom')">生成周计划</button>
+        <div id="weekPlanResult"></div>
+    </div>
+
+    <!-- 菜谱匹配 -->
+    <div class="card">
+        <h3>🍳 剩余食材大变身</h3>
+        <p style="font-size: 0.9em; color: #666;">基于剩余食材的推荐菜谱功能，敬请期待功能升级！</p>
+    </div>
+
+    <script>
+        // 保存建议（简单示例，可自行扩充）
+        const storageTips = {
+            "鸡蛋": "常温保存1-2周，冷藏可达1月。",
+            "牛奶": "2-6°C冷藏，开封后尽快饮用。",
+            "叶菜": "用纸包好，冷藏水分更保鲜。",
+            "白蘑菇": "用纸袋包，冷藏，防潮湿",
+            "胡萝卜": "冷藏前去掉叶子，密封。",
+            //
